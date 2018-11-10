@@ -2,7 +2,6 @@ package trymutex
 
 import (
 	"sync"
-	"sync/atomic"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -49,36 +48,16 @@ func TestNewTryMutexWithSyncMutex(t *testing.T) {
 			c.So(unlockCount, ShouldEqual, 1)
 			wg.Wait()
 
-			for i := 0; i < 100; i++ {
-				var unlockCount int32
-				var lockCount int32
-				m.TryUnLock()
-				c.So(m.IsLocked(), ShouldBeFalse)
-				for index := 0; index < 10000; index++ {
-					wg.Add(1)
-					go func() {
-						if m.TryUnLock() {
-							atomic.AddInt32(&unlockCount, 1)
-						}
-						wg.Done()
-					}()
-					wg.Add(1)
-					go func() {
-						if m.TryLock() {
-							atomic.AddInt32(&lockCount, 1)
-						}
-						wg.Done()
-					}()
-				}
-				wg.Wait()
-				if m.TryUnLock() {
-					unlockCount++
-				}
-				// 起始状态是unlock
-				// 结束状态是unlock
-				c.So(unlockCount, ShouldEqual, lockCount)
-				c.So(m.IsLocked(), ShouldBeFalse)
-			}
+		})
+
+		Convey("mutex", func(c C) {
+			mutex := &sync.Mutex{}
+			m1 := NewTryMutexWithSyncMutex(mutex)
+			m2 := NewTryMutexWithSyncMutex(mutex)
+			m1.Lock()
+			c.So(m2.TryLock(), ShouldBeFalse)
+			c.So(m2.TryUnLock(), ShouldBeFalse)
+			c.So(m1.TryUnLock(), ShouldBeTrue)
 		})
 	})
 }
